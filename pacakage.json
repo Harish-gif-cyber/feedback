@@ -1,0 +1,13 @@
+{
+  "name": "feedback-system",
+  "version": "1.0.0",
+  "description": "Feedback System DevOps project for 24MIS0031",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

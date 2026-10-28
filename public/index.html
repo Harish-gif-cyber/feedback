@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Feedback System - 24MIS0031</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f5fa;
+            color: #263247;
+        }
+
+        header {
+            background: #263a70;
+            color: white;
+            text-align: center;
+            padding: 25px 15px;
+        }
+
+        main {
+            width: min(850px, 92%);
+            margin: 25px auto;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px #00000010;
+        }
+
+        h2 {
+            color: #263a70;
+            margin-top: 0;
+        }
+
+        label {
+            display: block;
+            margin-top: 12px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 11px;
+            margin-top: 6px;
+            border: 1px solid #cbd2df;
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            background: #263a70;
+            color: white;
+            border: 0;
+            border-radius: 6px;
+            padding: 12px 18px;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #182850;
+        }
+
+        .feedback-item {
+            border: 1px solid #dce2ed;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 12px;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #687386;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Feedback System</h1>
+        <p>Registration Number: 24MIS0031</p>
+        <p id="version">Loading version...</p>
+    </header>
+
+    <main>
+        <div id="message" class="message" role="status"></div>
+
+        <!-- V1: Submit feedback -->
+        <section id="submitSection" class="card" hidden>
+            <h2>Submit Feedback</h2>
+
+            <form id="feedbackForm">
+                <label for="name">Your Name</label>
+                <input id="name" required maxlength="100">
+
+                <label for="rating">Rating</label>
+                <select id="rating" required>
+                    <option value="">Select a rating</option>
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Good</option>
+                    <option value="3">3 - Average</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="1">1 - Very Poor</option>
+                </select>
+
+                <label for="feedbackText">Your Feedback</label>
+                <textarea
+                    id="feedbackText"
+                    required
+                    maxlength="1000"
+                ></textarea>
+
+                <button type="submit">Submit Feedback</button>
+            </form>
+        </section>
+
+        <!-- V2: View all feedback -->
+        <section id="viewSection" class="card" hidden>
+            <h2>All Feedback Entries</h2>
+
+            <button id="loadFeedback">
+                View All Feedback
+            </button>
+
+            <div id="viewResults"></div>
+        </section>
+
+        <!-- V3: Filter and sort feedback -->
+        <section id="filterSection" class="card" hidden>
+            <h2>Filter and Sort Feedback</h2>
+
+            <label for="filterRating">Filter by Rating</label>
+
+            <select id="filterRating">
+                <option value="">All Ratings</option>
+                <option value="5">5 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="2">2 Stars</option>
+                <option value="1">1 Star</option>
+            </select>
+
+            <label for="sortOption">Sort By</label>
+
+            <select id="sortOption">
+                <option value="latest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="rating-high">Highest Rating</option>
+                <option value="rating-low">Lowest Rating</option>
+                <option value="name">Name</option>
+            </select>
+
+            <button id="filterButton">
+                Apply Filter
+            </button>
+
+            <div id="filterResults"></div>
+        </section>
+    </main>
+
+    <footer>
+        Feedback System | DevOps Project | 24MIS0031
+    </footer>
+
+    <script>
+        const messageBox = document.getElementById("message");
+
+        function showMessage(text, isError = false) {
+            messageBox.textContent = text;
+            messageBox.style.display = "block";
+            messageBox.style.background = isError
+                ? "#fde8e8"
+                : "#e3f4e8";
+        }
+
+        async function request(url, method = "GET", data) {
+            const options = {
+                method,
+                headers: {}
+            };
+
+            if (data !== undefined) {
+                options.headers["Content-Type"] = "application/json";
+                options.body = JSON.stringify(data);
+            }
+
+            const response = await fetch(url, options);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result.error || "Request failed"
+                );
+            }
+
+            return result;
+        }
+
+        function renderFeedback(container, entries) {
+            container.replaceChildren();
+
+            if (entries.length === 0) {
+                container.textContent =
+                    "No feedback matches your selection.";
+                return;
+            }
+
+            entries.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "feedback-item";
+
+                const heading = document.createElement("h3");
+                heading.textContent = item.name;
+
+                const rating = document.createElement("p");
+                rating.textContent = "Rating: " + item.rating + "/5";
+
+                const feedback = document.createElement("p");
+                feedback.textContent = item.message;
+
+                const date = document.createElement("small");
+                date.textContent =
+                    "Submitted: " +
+                    new Date(item.createdAt).toLocaleString();
+
+                card.append(heading, rating, feedback, date);
+                container.appendChild(card);
+            });
+        }
+
+        async function initialize() {
+            try {
+                const health = await request("/health");
+                const version = health.version;
+
+                document.getElementById("version").textContent =
+                    "Running Version: " + version;
+
+                document.getElementById("submitSection").hidden =
+                    version !== "v1";
+
+                document.getElementById("viewSection").hidden =
+                    version !== "v2";
+
+                document.getElementById("filterSection").hidden =
+                    version !== "v3";
+            } catch (error) {
+                showMessage(
+                    "Unable to connect to the server.",
+                    true
+                );
+            }
+        }
+
+        // V1: Submit feedback.
+        document.getElementById("feedbackForm").addEventListener(
+            "submit",
+            async event => {
+                event.preventDefault();
+
+                try {
+                    const result = await request(
+                        "/feedback",
+                        "POST",
+                        {
+                            name: document.getElementById("name").value,
+                            rating: Number(
+                                document.getElementById("rating").value
+                            ),
+                            message: document.getElementById(
+                                "feedbackText"
+                            ).value
+                        }
+                    );
+
+                    showMessage(result.message);
+                    event.target.reset();
+                } catch (error) {
+                    showMessage(error.message, true);
+                }
+            }
+        );
+
+        // V2: View all feedback.
+        async function loadFeedback() {
+            try {
+                const result = await request("/feedback");
+
+                renderFeedback(
+                    document.getElementById("viewResults"),
+                    result.feedback
+                );
+            } catch (error) {
+                showMessage(error.message, true);
+            }
+        }
+
+        document.getElementById("loadFeedback").addEventListener(
+            "click",
+            loadFeedback
+        );
+
+        // V3: Filter and sort feedback.
+        async function filterFeedback() {
+            try {
+                const rating =
+                    document.getElementById("filterRating").value;
+
+                const sort =
+                    document.getElementById("sortOption").value;
+
+                const params = new URLSearchParams({ sort });
+
+                if (rating) {
+                    params.set("rating", rating);
+                }
+
+                const result = await request(
+                    "/feedback/filter?" + params.toString()
+                );
+
+                renderFeedback(
+                    document.getElementById("filterResults"),
+                    result.feedback
+                );
+            } catch (error) {
+                showMessage(error.message, true);
+            }
+        }
+
+        document.getElementById("filterButton").addEventListener(
+            "click",
+            filterFeedback
+        );
+
+        initialize();
+    </script>
+</body>
+</html>
